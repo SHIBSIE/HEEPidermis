@@ -93,10 +93,10 @@ module analog_subsystem #(
 
   aMUX u_aMUX (.SEL(amux_sel_i));
 
-  iREF u_iREF1 (.CAL(iref1_calibration_i));
+  iREF u_iREF1 (.CAL(iref1_calibration_i), .IOUT_int_nA() );
 
-  iREF u_iREF2 (.CAL(iref2_calibration_i));
+  iREF u_iREF2 (.CAL(iref2_calibration_i), .IOUT_int_nA());
 
-  vREF u_vREF (.CAL(vref_calibration_i));
+  vREF u_vREF (.CAL(vref_calibration_i), .VOUT_int_mV());
 
 endmodule
