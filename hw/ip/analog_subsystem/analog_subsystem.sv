@@ -68,16 +68,16 @@ module analog_subsystem #(
       .DAC_IOUT_int_nA(iDAC2_IOUT_int_nA)
   );
 
-    resistor #(
-        .CHANGE_RATE_HZ(100000000)
-    ) rskin (
-        .refresh(vco_refresh_i),
-        .r_ohm( resistance_O )
-    );
+  resistor #(
+      .CHANGE_RATE_HZ(100000000)
+  ) rskin (
+      .refresh(vco_refresh_i),
+      .r_ohm  (resistance_O)
+  );
 
   always_comb begin
-    VCOp_VIN_int_uV = $rtoi(supply_uV - iDAC1_IOUT_int_nA * (resistance_O/1000 / 1.01));
-    VCOn_VIN_int_uV = $rtoi(supply_uV - iDAC2_IOUT_int_nA * resistance_O/1000);
+    VCOp_VIN_int_uV = $rtoi(supply_uV - iDAC1_IOUT_int_nA * (resistance_O / 1000 / 1.01));
+    VCOn_VIN_int_uV = $rtoi(supply_uV - iDAC2_IOUT_int_nA * resistance_O / 1000);
   end
 
   VCO u_VCOp (
