@@ -235,8 +235,8 @@ package jtag_pkg;
       this.idle(s_tck, s_tms, s_trstn, s_tdi);
     endtask
 
-    task shift(input logic [size-1:0] datain, output logic [size-1:0] dataout, ref logic s_tck, ref logic s_tms, ref logic s_trstn,
-               ref logic s_tdi, ref logic s_tdo);
+    task shift(input logic [size-1:0] datain, output logic [size-1:0] dataout, ref logic s_tck, ref logic s_tms, ref logic s_trstn, ref logic s_tdi,
+               ref logic s_tdo);
       this.jtag_goto_SHIFT_DR(s_tck, s_tms, s_trstn, s_tdi);
       this.jtag_shift_NBITS_SHIFT_DR(size, datain, dataout, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       this.idle(s_tck, s_tms, s_trstn, s_tdi);
@@ -357,8 +357,8 @@ package jtag_pkg;
                              idle         %x \n\
                              dmistat      %x \n\
                              abits        %x \n\
-                             version      %x \n", $realtime, dtmcs, dtmcs.dmihardreset, dtmcs.dmireset, dtmcs.idle, dtmcs.dmistat, dtmcs.abits,
-               dtmcs.version);
+                             version      %x \n", $realtime, dtmcs, dtmcs.dmihardreset, dtmcs.dmireset, dtmcs.idle, dtmcs.dmistat,
+               dtmcs.abits, dtmcs.version);
 
       this.init_dmi_access(s_tck, s_tms, s_trstn, s_tdi);
 
@@ -373,8 +373,8 @@ package jtag_pkg;
                  allhalted    %x\n\
                  anyhalted    %x\n\
                  version      %x\n\
-              ", $realtime, dmstatus.impebreak, dmstatus.allhavereset, dmstatus.anyhavereset, dmstatus.allrunning, dmstatus.anyrunning,
-               dmstatus.allhalted, dmstatus.anyhalted, dmstatus.version);
+              ", $realtime, dmstatus.impebreak, dmstatus.allhavereset, dmstatus.anyhavereset,
+               dmstatus.allrunning, dmstatus.anyrunning, dmstatus.allhalted, dmstatus.anyhalted, dmstatus.version);
 
     endtask
 
@@ -602,8 +602,8 @@ package jtag_pkg;
                  sberror         %x\n\
                  sbasize         %x\n\
                  sbaccess32      %x\
-              ", $realtime, sbcs.sbbusy, sbcs.sbreadonaddr, sbcs.sbaccess, sbcs.sbautoincrement, sbcs.sbreadondata, sbcs.sberror, sbcs.sbasize,
-               sbcs.sbaccess32);
+              ", $realtime, sbcs.sbbusy, sbcs.sbreadonaddr, sbcs.sbaccess,
+               sbcs.sbautoincrement, sbcs.sbreadondata, sbcs.sberror, sbcs.sbasize, sbcs.sbaccess32);
 
       assert (sbcs.sbbusy == 1'b0)
       else $error("sb is busy even though we are idling");
@@ -651,8 +651,8 @@ package jtag_pkg;
 
     endtask
 
-    task set_dmi(input logic [1:0] op_i, input logic [6:0] address_i, input logic [31:0] data_i, output logic [DMI_SIZE-1:0] data_o,
-                 ref logic s_tck, ref logic s_tms, ref logic s_trstn, ref logic s_tdi, ref logic s_tdo);
+    task set_dmi(input logic [1:0] op_i, input logic [6:0] address_i, input logic [31:0] data_i, output logic [DMI_SIZE-1:0] data_o, ref logic s_tck,
+                 ref logic s_tms, ref logic s_trstn, ref logic s_tdi, ref logic s_tdo);
       logic [DMI_SIZE-1:0] buffer;
       JTAG_reg #(
           .size (DMI_SIZE),
@@ -784,9 +784,18 @@ package jtag_pkg;
 
         assert (dmsane <= 1)
         else
-          $error("bad write to dmcontrol: only one of the following may be set to 1: resumereq %b,", dmcontrol.resumereq, "hartreset %b,",
-                 dmcontrol.hartreset, "ackhavereset %b,", dmcontrol.ackhavereset, "setresethaltreq %b,", dmcontrol.setresethaltreq,
-                 "clrresethaltreq %b", dmcontrol.clrresethaltreq);
+          $error(
+              "bad write to dmcontrol: only one of the following may be set to 1: resumereq %b,",
+              dmcontrol.resumereq,
+              "hartreset %b,",
+              dmcontrol.hartreset,
+              "ackhavereset %b,",
+              dmcontrol.ackhavereset,
+              "setresethaltreq %b,",
+              dmcontrol.setresethaltreq,
+              "clrresethaltreq %b",
+              dmcontrol.clrresethaltreq
+          );
       end
 
 
@@ -1425,7 +1434,7 @@ package jtag_pkg;
       pc_offsets = {4, 8, 16, 20, 24, 28, 32};
       this.writeMem(addr_i + 0, riscv_pkg::nop(), s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       this.writeMem(addr_i + 4, riscv_pkg::nop(), s_tck, s_tms, s_trstn, s_tdi, s_tdo);
-      this.writeMem(addr_i + 8, riscv_pkg::branch (5'h0, 5'h0, 3'b0, 12'h4),  // branch to + 16
+      this.writeMem(addr_i + 8, riscv_pkg::branch(5'h0, 5'h0, 3'b0, 12'h4),  // branch to + 16
                     s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       this.writeMem(addr_i + 12, riscv_pkg::nop(), s_tck, s_tms, s_trstn, s_tdi, s_tdo);
       this.writeMem(addr_i + 16, {7'h0, 5'b1, 5'b1, 3'b000, 5'b1, 7'h13},  // addi xi, xi, i

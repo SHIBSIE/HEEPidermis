@@ -72,7 +72,7 @@ module tb_top;
   // Cycle count
   int unsigned cycle_cnt_q;
 
-  event rst_event;
+  event        rst_event;
 
   // VCD dump
   typedef enum logic [1:0] {
@@ -254,8 +254,7 @@ module tb_top;
         $display("[TESTBENCH] %t - Setting boot enable in ROM", $realtime);
 
         // SoC Controller boot exit loop value
-        debug_mode_if.writeMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS + 32'hC, 32'd1, s_tck,
-                               s_tms, s_trstn, s_tdi, s_tdo);
+        debug_mode_if.writeMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS + 32'hC, 32'd1, s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
         #500us;
 
@@ -275,20 +274,18 @@ module tb_top;
             debug_mode_if.clear_sbcserrors(s_tck, s_tms, s_trstn, s_tdi, s_tdo);
           end
           // SoC Controller exit_valid address
-          debug_mode_if.readMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS, jtag_data[0], s_tck,
-                                s_tms, s_trstn, s_tdi, s_tdo);
+          debug_mode_if.readMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS, jtag_data[0], s_tck, s_tms, s_trstn, s_tdi, s_tdo);
           rd_cnt++;
           #50us;
         end
 
         // SoC Controller exit_value address
-        debug_mode_if.readMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS + 32'h4, jtag_data[0],
-                              s_tck, s_tms, s_trstn, s_tdi, s_tdo);
+        debug_mode_if.readMem(core_v_mini_mcu_pkg::SOC_CTRL_START_ADDRESS + 32'h4, jtag_data[0], s_tck, s_tms, s_trstn, s_tdi, s_tdo);
 
         exit_value_jtag = jtag_data[0][31:0];
         exit_valid_jtag = 1;
-      // Boot from SPI flash
-      // -------------------
+        // Boot from SPI flash
+        // -------------------
 `else
         $fatal("VCS does not support BOOT_MODE_JTAG!");
 `endif
@@ -435,7 +432,7 @@ module tb_top;
     #RESET_DEL tb_rst_n = 1'b1;
     $display("[%t] Reset released", $time);
 
-    #RESET_DEL -> rst_event;
+    #RESET_DEL->rst_event;
 
   end
 
@@ -504,11 +501,11 @@ module tb_top;
   assign ref_clk_w       = ref_clk;
   assign tb_rst_nw       = tb_rst_n;
 
-  assign jtag_tck             = s_tck;
-  assign jtag_trst_n          = s_trstn;
-  assign jtag_tms             = s_tms;
-  assign jtag_tdi             = s_tdi;
-  assign s_tdo                = jtag_tdo;
+  assign jtag_tck        = s_tck;
+  assign jtag_trst_n     = s_trstn;
+  assign jtag_tms        = s_tms;
+  assign jtag_tdi        = s_tdi;
+  assign s_tdo           = jtag_tdo;
 
   // Instantiate TB system
   tb_system #(
