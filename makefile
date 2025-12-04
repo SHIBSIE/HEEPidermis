@@ -146,7 +146,7 @@ conda: environment.yml
 
 # Regenerate environment.yml from python-requirements.txt
 .PHONY: environment.yml
-environment.yml: python-requirements.txt
+environment.yml: util/python-requirements.txt
 	util/python-requirements2conda.sh
 
 

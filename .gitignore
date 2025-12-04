@@ -42,6 +42,7 @@ private/
 .vscode/
 .Xil/
 *.txt
+!util/*.txt
 hw/vendor/x-heep/tb/ext_bus.sv
 
 
