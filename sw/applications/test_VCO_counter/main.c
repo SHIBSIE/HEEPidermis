@@ -9,10 +9,12 @@
 #include "soc_ctrl.h"
 
 #define VCO_FS_HZ 1
-#define SYS_FCLK_HZ 1000000
+#define SYS_FCLK_HZ 10000000
 #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
 
-uint8_t graph[50];
+#define MOVING_AVG_WINDOW 10
+
+uint32_t window[MOVING_AVG_WINDOW];
 
 void __attribute__((aligned(4), interrupt)) handler_irq_timer(void) {
     timer_arm_stop();
@@ -35,8 +37,8 @@ int main() {
     // Set the VCO refresh rate to 1000 cycles
     VCO_set_refresh_rate(VCO_UPDATE_CC);
 
-    int i=0;
-    uint32_t diff, last_diff, new_val, last_val = 0;
+    uint32_t i=0;
+    uint32_t count, last_count, diff, last_diff, avg, sum, dist, var = 0;
     VCO_set_counter_limit(VCO_UPDATE_CC);
 
 
@@ -49,26 +51,27 @@ int main() {
     timer_start();
 
     while(1){
-        new_val = VCOp_get_coarse();
-        diff =  new_val - last_val;
-        printf("\n%d.%d kHz", diff/1000, diff%1000);
-        // printf("\n%d kHz", diff/1000);
-        printf("  | %d", new_val);
+        count = VCOp_get_coarse();
+        diff =  count - last_count;
+        if(  diff < (15*last_diff)/10 && diff > (5*last_diff)/10 ){
+            window[i%MOVING_AVG_WINDOW] = diff;
+            sum = 0;
+            for(int j=0; j<MOVING_AVG_WINDOW; j++){
+                sum += window[j];
+                dist = window[j] - avg;
+                var += dist*dist;
+            }
+            avg = sum/MOVING_AVG_WINDOW;
+            var /= MOVING_AVG_WINDOW;
 
-        // if(diff > 0 && diff < 1000000){
-        //     graph[(last_dif/10000] = 0x20; //space
-        //     graph[last_diff/10000 +1] = 0x20; //space
-        //     graph[diff/10000] = '*';
-        //     graph[diff/10000 +1] = 0;
-        //     printf("\n%s\t%d kHz",graph,diff/1000);
-        // }
-        // last_diff = diff;
-        i++;
-        last_val = new_val;
-        // for (int i = 0 ; i < 200 ; i++) {
-        //     asm volatile ("nop");
-        // }
+            printf("\n%d:\t%d.%d kHz\t(µ:%d.%d, σ²:%d)", i, diff/1000, diff%1000, avg/1000, avg%1000, var);
+            i++;
+        }else{
+            printf("\nSkipped");
+        }
 
+        last_count = count;
+        last_diff = diff;
         timer_cycles_init();
         timer_irq_enable();
         timer_arm_start(VCO_UPDATE_CC); // 50 cycles for taking into account initialization
@@ -76,59 +79,6 @@ int main() {
         timer_irq_clear();
 
     }
-
-
-    // while(1){
-    //     new_val = VCOp_get_coarse();
-    //     // if(diff > 0 && diff < 1000000){
-    //     //     for( int i =0; i < diff/10000; i++){
-    //     //         printf(" ");
-    //     //     }
-    //     // }
-    //     printf("*");
-    //     i++;
-    //     last_val = new_val;
-    //     for (int i = 0 ; i < 200 ; i++) {
-    //         asm volatile ("nop");
-    //     }
-
-    //     timer_cycles_init();
-    //     timer_irq_enable();
-    //     timer_arm_start(VCO_UPDATE_CC); // 50 cycles for taking into account initialization
-    //     asm volatile ("wfi");
-    //     timer_irq_clear();
-
-    // }
-
-
-    // timer_arm_start(1000000);
-    // while(1){
-    //     CSR_CLEAR_BITS(CSR_REG_MSTATUS, 0x8);
-    //     wait_for_interrupt();
-    //     CSR_SET_BITS(CSR_REG_MSTATUS, 0x8);
-    //     // Set the VCO counter limit to 100 cycles
-    //     new_val = VCOp_get_coarse();
-    //     printf("%d: %d\t%d\n",i, new_val, new_val - last_val);
-    //     i++;
-    //     last_val = new_val;
-    // }
-
-
-
-
-
-    // // Trigger a manual refresh
-    // VCO_trigger();
-
-
-    // Wait a bit for the first refresh at least
-    // for (int i = 0 ; i < 2000 ; i++) {
-    //     asm volatile ("nop");
-    // }
-
-    // CHECK manually in the waveforms the vco_counter_overflow signal
-    // in the tb_system. It should have one-cycle pulses every 100+1
-    // cycles.
 
     return 0;
 }
