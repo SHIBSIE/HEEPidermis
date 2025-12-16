@@ -65,13 +65,15 @@ Make sure the Conda environment is active:
    ```
 
 2. Make sure that the following tools are available in your system's `PATH`:
-   - RISC-V toolchain (supporting at least `rv32imc`)
-   - Verible
-   - GTKWave
-   - Siemens QuestaSim version 2020.4 or above
-   - Synopsys Design Compiler version 2020.09 or above
-   - Verilator 4
+   - To compile code: **RISC-V toolchain version 2022.01.17**, supporting at least `rv32imc`. Newer versions will work but compilation will have a bug when reporting memory usage.
+   - To format SystemVerilog (in case you want to open a PR): **Verible version 0.0-4023-gc1271a00**
+   - To simulate (open source): **Verilator 4.210**
+   - To see waveforms out of Verilator: **GTKWave**
+   - In case you have the licences:
+     - Siemens QuestaSim version 2020.4 or above
+     - Synopsys Design Compiler version 2020.09 or above
 
+You can follow the instructions on how to install these tools on the [X-HEEP documentation - Manual setup](https://x-heep.readthedocs.io/en/latest/GettingStarted/Setup.html#manual-setup).
 
 ## Programming the ASIC
 
@@ -86,9 +88,10 @@ You need to connect the JTAG interface to an FTDI chip. This is avaialble on the
 
 1. The BOOT switches should be set to
 
-|--------------|---|
-| FLASH_EXEC   | 0 |
-| BOOT_SEL     | 0 |
+| Signal     | Value |
+|------------|-------|
+| FLASH_EXEC | 0     |
+| BOOT_SEL   | 0     |
 
 2. Set the system clock to 1 MHz. You can do that in two steps if you have the CHEEP board, and have exported the variable `$CHEEP_BOARDS` pointing to the folder where the repo is.
 ```bash
