@@ -401,9 +401,9 @@ openocd:
 # Open uart
 .PHONY: uart
 uart:
-	(gnome-terminal -- bash -c "picocom -b $(UART_BAUD) -r -l --imap lfcrlf /dev/serial/by-id/usb-FTDI_Quad_RS232-HS-if02-port0" & \
+	(xterm -hold -e "picocom -b $(UART_BAUD) -r -l --imap lfcrlf /dev/serial/by-id/usb-FTDI_Quad_RS232-HS-if02-port0" & \
 	echo $$! > .uart.pid )
-# (xterm -hold -e "picocom -b $(UART_BAUD) -r -l --imap lfcrlf /dev/serial/by-id/usb-FTDI_Quad_RS232-HS-if02-port0" & \
+# (gnome-terminal -- bash -c "picocom -b $(UART_BAUD) -g uart.log -r -l --imap lfcrlf /dev/serial/by-id/usb-FTDI_Quad_RS232-HS-if02-port0" & \
 
 # Open openOCD and uart
 .PHONY: jtag_open
