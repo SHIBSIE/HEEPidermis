@@ -16,6 +16,9 @@
 
 #define VCO_SUPPLY_VOLTAGE_UV 800000
 
+#define IDAC_DEFAULT_CAL 0
+#define IREF_DEFAULT_CAL 255
+
 #define COMPUTE_AVG         0
 #define MOVING_AVG_WINDOW   10
 
@@ -85,6 +88,7 @@ int main() {
     uint32_t i=0;
     uint32_t count, last_count, diff, last_diff, avg, sum, dist, var = 0;
     uint32_t freq_Hz, vin_uV, iin_nA, res_kO;
+    uint8_t idac_val = 0;
 
     soc_ctrl_t soc_ctrl;
     soc_ctrl.base_addr = mmio_region_from_addr((uintptr_t)SOC_CTRL_START_ADDRESS);
@@ -98,12 +102,13 @@ int main() {
     // Set the VCO refresh rate to 1000 cycles
     VCO_set_refresh_rate(VCO_UPDATE_CC);
 
-    REFs_calibrate( 0b0011111111, IREF1 );
+    REFs_calibrate( IREF_DEFAULT_CAL, IREF1 );
     REFs_calibrate( 0b1111111111, VREF );
 
     iDACs_enable(true, false);
-    iDAC1_calibrate(16);
-    iin_nA = update_dac1(4);
+    iDAC1_calibrate(IDAC_DEFAULT_CAL);
+    idac_val = 4;
+    iin_nA = update_dac1(idac_val);
 
     printf("=== Test VCO overflow ===\n");
 

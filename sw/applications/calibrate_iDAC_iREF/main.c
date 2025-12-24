@@ -7,7 +7,6 @@
 #include "timer_sdk.h"
 #include "soc_ctrl.h"
 #include "iDAC_ctrl.h"
-#include "VCO_decoder.h"
 #include "cheep.h"
 #include "pad_control.h"
 #include "pad_control_regs.h"
@@ -20,7 +19,9 @@
 
 #define GPIO_DSM_IN 5
 #define GPIO_DSM_CLK 4
-#define SHUNT_RES_OHM 22980
+
+#define IDAC_MAX_CAL 32
+#define IREF_MAX_CAL 2047
 
 #define IDAC_DEFAULT_CAL 0
 #define IREF_DEFAULT_CAL 255
@@ -41,12 +42,11 @@ void __attribute__((aligned(4), interrupt)) handler_irq_timer(void) {
     return;
 }
 
-void update_dacs(val){
-    uint32_t current_A_nA = 40*val;
-    uint32_t current_B_nA = 40*(255-val);
-    uint32_t voltage_drop_A_mV = (current_A_nA*SHUNT_RES_OHM)/1000000;
-    iDACs_set_currents( val, 255-val);
-    printf("%d = A:%d.%d (ΔV:%d mV)| B: %d.%d uA\n", val, current_A_nA/1000, current_A_nA%1000, voltage_drop_A_mV, current_B_nA/1000, current_B_nA%1000);
+uint32_t update_dac1(val){
+    uint32_t current_nA = 40*val;
+    iDACs_set_currents( val, 0);
+    printf("Injecting %d.%d uA (code %d)\n", current_nA/1000, current_nA%1000,val);
+    return current_nA;
 }
 
 int main() {
@@ -84,7 +84,9 @@ int main() {
 
 
 
-    static uint32_t val = 0;
+    static uint32_t idac_val = 255;
+    static uint32_t idac_cal = 0;
+    static uint32_t iref_cal = 0;
 
     soc_ctrl_t soc_ctrl;
     soc_ctrl.base_addr = mmio_region_from_addr((uintptr_t)SOC_CTRL_START_ADDRESS);
@@ -93,19 +95,17 @@ int main() {
     timer_cycles_init();         // Init the timer SDK for clock cycles
 
     iDACs_enable(true, true);
-    VCOp_enable(true);
-    VCOn_enable(true);
+
+    update_dac1(idac_val);
 
     // Set the calibration values
-    iDAC1_calibrate(IDAC_DEFAULT_CAL);
-    iDAC2_calibrate(IDAC_DEFAULT_CAL);
-
-    REFs_calibrate( IREF_DEFAULT_CAL, IREF1 );
+    iDAC1_calibrate(idac_cal);
+    REFs_calibrate( 0, IREF1 );
 
     enable_timer_interrupt();   // Enable the timer machine-level interrupt
     timer_irq_enable();
 
-    printf("=== test iDAC linear gpio ===\n");
+    printf("\n=== iDAC and iREF calibration ===\n Watch out, values are printed one press delayed");
 
     timer_cycles_init();
     timer_start();
@@ -116,17 +116,18 @@ int main() {
 
         gpio_read(GPIO_DSM_IN, &gpio_high);
         if(gpio_high){
-            val++;
-            printf("UP\n");
-            update_dacs(val);
+            idac_cal = (idac_cal +1)%IDAC_MAX_CAL;
+            printf("\niDAC cal: %d", idac_cal);
+            iDAC1_calibrate(idac_cal);
             LAUNCH_TIMER();
-        }
-        gpio_read(GPIO_DSM_CLK, &gpio_high);
-        if(gpio_high){
-            val--;
-            printf("DN\n");
-            update_dacs(val);
-            LAUNCH_TIMER();
+        }else{
+            gpio_read(GPIO_DSM_CLK, &gpio_high);
+            if(gpio_high){
+                iref_cal = ((iref_cal << 1) +1)%IREF_MAX_CAL;
+                printf("\niREF cal: %d", iref_cal);
+                REFs_calibrate( iref_cal, IREF1 );
+                LAUNCH_TIMER();
+            }
         }
     }
 
