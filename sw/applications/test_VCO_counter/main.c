@@ -9,7 +9,7 @@
 #include "soc_ctrl.h"
 
 #define VCO_FS_HZ 1
-#define SYS_FCLK_HZ 200000
+#define SYS_FCLK_HZ 10000000
 #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
 
 #define VCO_SUPPLY_FROM_LDO 1
@@ -18,6 +18,8 @@
 
 #define COMPUTE_AVG         0
 #define MOVING_AVG_WINDOW   10
+
+#define PSEUDO_DIFF_MODE    1
 
 uint32_t window[MOVING_AVG_WINDOW];
 
@@ -31,13 +33,13 @@ void __attribute__((aligned(4), interrupt)) handler_irq_timer(void) {
 }
 
 
-uint32_t compute_freq_Hz( diff ){
-    uint32_t freq_Hz;
-    freq_Hz = diff*VCO_FS_HZ;
+uint32_t compute_freq_Hz( diff_p ){
+    uint32_t freq_p_Hz;
+    freq_p_Hz = diff_p*VCO_FS_HZ;
     #if VCO_SUPPLY_FROM_LDO
-        freq_Hz += VCO_CAL_FROM_LDO_ADD_HZ;
+        freq_p_Hz += VCO_CAL_FROM_LDO_ADD_HZ;
     #endif
-    return freq_Hz;
+    return freq_p_Hz;
 }
 
 uint32_t interpolate_Vin_uV(uint32_t f_target) {
@@ -88,17 +90,25 @@ int main() {
 
     timer_cycles_init();         // Init the timer SDK for clock cycles
 
-    // Enable the VCOp and VCOn
+    // Enable the VCOp (and VCOn)
     VCOp_enable(true);
+    #if PSEUDO_DIFF_MODE
     VCOn_enable(true);
+    #endif
 
     // Set the VCO refresh rate to 1000 cycles
     VCO_set_refresh_rate(VCO_UPDATE_CC);
 
     uint32_t i=0;
-    uint32_t count, last_count, diff, last_diff, avg, sum, dist, var = 0;
+    uint32_t coarse_p, last_coarse_p, diff_p, last_diff_p = 0;
+    uint32_t diff, avg, sum, dist, var, count = 0;
+    uint32_t freq_p_Hz, vin_p_uV;
+    #if PSEUDO_DIFF_MODE
+    uint32_t coarse_n, last_coarse_n, diff_n, last_diff_n = 0;
+    uint32_t freq_n_Hz, vin_n_uV = 0;
+    uint32_t vin_d_uV = 0;
+    #endif
 
-    uint32_t freq_Hz, vin_uV;
 
     VCO_set_counter_limit(VCO_UPDATE_CC);
 
@@ -112,11 +122,19 @@ int main() {
     timer_start();
 
     while(1){
-        count = VCOp_get_coarse();
-        diff =  count - last_count;
-        if(  diff < (15*last_diff)/10 && diff > (5*last_diff)/10 ){
+        coarse_p    = VCOp_get_coarse();
+        diff_p      =  coarse_p - last_coarse_p;
+        #if PSEUDO_DIFF_MODE
+        coarse_n    = VCOn_get_coarse();
+        diff_n      =  coarse_n - last_coarse_n;
+        count       = VCO_get_count();
+
+        diff        = diff_n - diff_p;
+        #endif
+
+        if(  diff_p < (15*last_diff_p)/10 && diff_p > (5*last_diff_p)/10 ){
             #if COMPUTE_AVG
-                window[i%MOVING_AVG_WINDOW] = diff;
+                window[i%MOVING_AVG_WINDOW] = diff_p;
                 sum = 0;
                 for(int j=0; j<MOVING_AVG_WINDOW; j++){
                     sum += window[j];
@@ -126,20 +144,34 @@ int main() {
                 avg = sum/MOVING_AVG_WINDOW;
                 var /= MOVING_AVG_WINDOW;
 
-                printf("\n%d:\t%d.%d kHz\t(µ:%d.%d, σ²:%d)", i, diff/1000, diff%1000, avg/1000, avg%1000, var);
+                printf("\n%d:\t%d.%d kHz\t(µ:%d.%d, σ²:%d)", i, diff_p/1000, diff_p%1000, avg/1000, avg%1000, var);
             #endif
 
-            freq_Hz = compute_freq_Hz(diff);
-            vin_uV  = interpolate_Vin_uV( freq_Hz );
-            printf("\n%d: %d Hz\t| %d uV", i, freq_Hz, vin_uV);
+            freq_p_Hz = compute_freq_Hz(diff_p);
+            vin_p_uV  = interpolate_Vin_uV( freq_p_Hz );
+            printf("\n%d:\t%d\tHz |\t%d\tuV", i, freq_p_Hz, vin_p_uV);
+
+            #if PSEUDO_DIFF_MODE
+            freq_n_Hz = compute_freq_Hz(diff_n);
+            vin_n_uV  = interpolate_Vin_uV( freq_n_Hz );
+            vin_d_uV  = vin_n_uV - vin_p_uV;
+            printf("|\t%d:\t%d\tHz |\t%d\tuV =\t%d\tuV", i, freq_n_Hz, vin_n_uV,vin_d_uV);
+
+            #endif
+
 
             i++;
         }else{
             printf("\nSkipped");
         }
 
-        last_count = count;
-        last_diff = diff;
+        last_coarse_p   = coarse_p;
+        last_diff_p     = diff_p;
+        #if PSEUDO_DIFF_MODE
+        last_coarse_n   = coarse_n;
+        last_diff_n     = diff_n;
+        #endif
+
         timer_cycles_init();
         timer_irq_enable();
         timer_arm_start(VCO_UPDATE_CC); // 50 cycles for taking into account initialization
