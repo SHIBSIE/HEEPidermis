@@ -99,16 +99,21 @@ make board_config
 make board_freq PLL_FREQ=1_000_000  #default
 ```
 
-3. Compile the code
+3. Build the SW/HW stack of the cheep
+```bash
+make cheep-gen
+```
+
+4. Compile the code
 ```bash
 make app BOOT_MODE=jtag
 ```
 
-4. Open openOCD and picocom to see the UART output
+1. Open openOCD and picocom to see the UART output
 ```bash
 make jtag_open
 ```
-5. Open GDB and run the program
+1. Open GDB and run the program
 ```bash
 make jtag_run
 ```
@@ -125,8 +130,8 @@ Useful commands:
 >
 > `x/8i` (see the following instructions).
 
-6. Exit GDB with `ctrl+C` and type `quit`
-7. Close the openOCD and uart terminals with
+1. Exit GDB with `ctrl+C` and type `quit`
+2. Close the openOCD and uart terminals with
 ```bash
 make jtag_close
 ```
