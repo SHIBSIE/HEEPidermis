@@ -131,6 +131,13 @@ else
     TERM_EXEC = $(XTERM_CMD)
 endif
 
+
+# Conda environemnt variables
+REQS_XHEEP 	:= hw/vendor/x-heep/util/python-requirements.txt
+REQS_CHEEP 	:= util/cheep-python-requirements.txt
+ENV_NAME 	:= heepidermis
+
+
 # ----- BUILD RULES ----- #
 
 # Get the path of this Makefile to pass to the Makefile help generator
@@ -154,12 +161,17 @@ endif
 ## @section Conda
 .PHONY: conda
 conda: environment.yml
-	conda env create -f environment.yml
+	@if conda info --envs | grep -q $(ENV_NAME); then \
+		echo "Environment exists, updating..."; \
+		conda env update -f environment.yml --prune; \
+	else \
+		echo "Creating new environment..."; \
+		conda env create -f environment.yml; \
+	fi
 
-# Regenerate environment.yml from python-requirements.txt
-.PHONY: environment.yml
-environment.yml: util/python-requirements.txt
-	util/python-requirements2conda.sh
+# Regenerate environment.yml by passing both requirement files to the script
+environment.yml: $(REQS_XHEEP) $(REQS_CHEEP)
+	bash util/python-requirements2conda.sh $(REQS_XHEEP) $(REQS_CHEEP)
 
 
 # Default alias
