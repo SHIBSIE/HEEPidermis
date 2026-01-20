@@ -1,0 +1,14 @@
+// Copyright 2023 EPFL and Politecnico di Torino
+// Solderpad Hardware License, Version 2.1, see LICENSE.md for details
+// SPDX-License-Identifier: Apache-2.0 WITH SHL-2.1
+
+{
+  name: "breakout-board",
+  target_dir: "breakout-board",
+
+  upstream: {
+    url: "https://github.com/esl-epfl/HEEPidermis-breakout-board",
+    rev: "933ff74b59dcd016e8e89684c6125ed0196954f0",
+  },
+
+}
