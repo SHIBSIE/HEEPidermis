@@ -2,7 +2,7 @@
 
 # Header for the environment file
 cat <<EOF > environment.yml
-name: heepokranios
+name: heepidermis
 channels:
   - defaults
 dependencies:

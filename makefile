@@ -171,7 +171,7 @@ conda: environment.yml
 	fi
 
 # Regenerate environment.yml by passing both requirement files to the script
-environment.yml: $(REQS_XHEEP) $(REQS_CHEEP)
+environment.yml:
 	bash util/python-requirements2conda.sh $(REQS_XHEEP) $(REQS_CHEEP)
 
 
