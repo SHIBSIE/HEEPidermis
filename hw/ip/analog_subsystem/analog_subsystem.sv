@@ -69,7 +69,7 @@ module analog_subsystem #(
   );
 
   resistor #(
-      .CHANGE_RATE_HZ(100000000)
+      .CHANGE_RATE_HZ(100000)
   ) rskin (
       .refresh(vco_refresh_i),
       .r_ohm  (resistance_O)

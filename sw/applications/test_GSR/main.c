@@ -12,7 +12,11 @@
 
 #define VCO_FS_HZ 1
 #define SYS_FCLK_HZ 10000000
+#if TARGET_SIM
+#define VCO_UPDATE_CC (SYS_FCLK_HZ/(1000*VCO_FS_HZ))
+#else
 #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
+#endif
 
 #define VCO_SUPPLY_VOLTAGE_UV 800000
 
@@ -25,6 +29,14 @@
 
 #define COMPUTE_AVG         0
 #define MOVING_AVG_WINDOW   10
+
+#if TARGET_SIM && PRINTF_IN_SIM
+        #define PRINTF(fmt, ...)    printf(fmt, ## __VA_ARGS__)
+#elif PRINTF_IN_FPGA && !TARGET_SIM
+    #define PRINTF(fmt, ...)    printf(fmt, ## __VA_ARGS__)
+#else
+    #define PRINTF(...)
+#endif
 
 uint32_t window[MOVING_AVG_WINDOW];
 
@@ -88,7 +100,7 @@ uint32_t interpolate_Vin_uV(uint32_t f_target) {
 uint32_t update_dac1(val){
     uint32_t current_nA = 40*val;
     iDACs_set_currents( val, 0);
-    printf("Injecting %d.%d uA (code %d)\n", current_nA/1000, current_nA%1000,val);
+    PRINTF("Injecting %d.%d uA (code %d)\n", current_nA/1000, current_nA%1000,val);
     return current_nA;
 }
 
@@ -101,6 +113,10 @@ int main() {
     uint32_t count, last_count, diff, last_diff, avg, sum, dist, var = 0;
     uint32_t freq_Hz, vin_uV, iin_nA, res_kO;
     uint8_t idac_val = 0;
+
+    #if TARGET_SIM
+    uint32_t loop_count = 0;
+    #endif
 
     soc_ctrl_t soc_ctrl;
     soc_ctrl.base_addr = mmio_region_from_addr((uintptr_t)SOC_CTRL_START_ADDRESS);
@@ -122,7 +138,7 @@ int main() {
     idac_val = 4;
     iin_nA = update_dac1(idac_val);
 
-    printf("=== Test VCO overflow ===\n");
+    PRINTF("=== Test VCO overflow ===\n");
 
     enable_timer_interrupt();   // Enable the timer machine-level interrupt
     timer_irq_enable();
@@ -140,21 +156,24 @@ int main() {
             res_kO  = compute_res_kO( iin_nA, vin_uV );
 
 
-            printf("\n%d: %d Hz\t| %d uV | %d kΩ", i, freq_Hz, vin_uV, res_kO);
+            PRINTF("\n%d: %d Hz\t| %d uV | %d kΩ", i, freq_Hz, vin_uV, res_kO);
 
             i++;
         }else{
-            printf("\nSkipped");
+            PRINTF("\nSkipped");
         }
 
         last_count = count;
         last_diff = diff;
         timer_cycles_init();
         timer_irq_enable();
-        timer_arm_start(VCO_UPDATE_CC); // 50 cycles for taking into account initialization
+        timer_arm_start(VCO_UPDATE_CC);
         asm volatile ("wfi");
         timer_irq_clear();
 
+        #if TARGET_SIM
+        if(loop_count++ >= 500) break;
+        #endif
     }
 
     return 0;
