@@ -266,7 +266,7 @@ verilator-opt: | check-firmware .verilator-check-params
 
 ## Open dumped waveform with GTKWave
 .PHONY: verilator-waves
-verilator-waves: $(BUILD_DIR)/sim-common/waves.fst | .check-gtkwave
+verilator-waves: $(BUILD_DIR)/epfl_cheep_cheep_0.3.0/sim-verilator/logs/waves.fst | .check-gtkwave
 	gtkwave -a util/heepidermis_wave_viewer.gtkw $<
 
 ## @subsection QuestaSim RTL simulation
