@@ -52,11 +52,13 @@ int main(void) {
     timer_irq_enable();
     timer_start();
 
+    uint32_t idac_val = 4;
+    iDACs_set_currents(idac_val, 0);
     // differential = false
     // channel = true  -> use VCOp
     // refresh rate = 1 Hz
     // idac = 4
-    initialize_pipeline(false, true, VCO_FS_HZ, 4);
+    initialize_pipeline(false, VCO_FS_HZ, idac_val);
 
     while (1) {
         status = vco_get_conductance(&conductance_nS);
