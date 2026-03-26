@@ -107,6 +107,8 @@ fs_curve = fs_Hz_vals
 duration_hrs = total_bits / (fs_curve * bitwidth) / 3600
 op_dur = total_bits / (op_sps * bitwidth) / 3600
 
+duration_lc_hrs = duration_hrs*47
+
 # --- Plotting ---
 plt.rcParams.update({'font.size': 9, 'font.family': 'serif'})
 fig, axs = plt.subplots(2, 3, figsize=(12, 6))
@@ -188,11 +190,14 @@ mark_op(axs[1, 1], op_S, op_sps)
 # 6. Duration
 pos = axs[1, 2].get_position()
 axs[1, 2].set_position([pos.x0, pos.y0, pos.width * 0.2, pos.height])
-axs[1, 2].plot(duration_hrs, fs_curve, color='gray', lw=2)
+axs[1, 2].plot(duration_hrs, fs_curve, color='blue', lw=2, label="Fixed rate sampling")
+axs[1, 2].plot(duration_lc_hrs, fs_curve, color='red', lw=2, label="Event-based decimation")
 axs[1, 2].set_yscale('log')
+axs[1, 2].set_xscale('log')
 axs[1, 2].set_ylim(fs_Hz_vals.min(), fs_Hz_vals.max())
 axs[1, 2].set_xlabel("Recording Duration (Hours)")
 axs[1, 2].set_ylabel(r"$f_{s}\,\mathrm{(Hz)}$")
+axs[1, 2].legend(loc='lower right')
 axs[1, 2].set_title(f"Duration = {op_dur:0.2f} h\nfor $MB = {mem_MB*1000:g}$KB, $b = {bitwidth}$", fontsize=10)
 axs[1, 2].grid(True, which='both', alpha=0.3)
 mark_op(axs[1, 2], op_dur, op_sps)
