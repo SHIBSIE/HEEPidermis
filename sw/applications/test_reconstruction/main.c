@@ -6,6 +6,11 @@
 #include "x-heep.h"
 #include <stdio.h>
 
+
+// =================== OUTDATED NOW DOESN'T WORK =======================
+
+
+
 #define PRINTF_IN_SIM 1
 
 #define SYS_FCLK_HZ 10000000

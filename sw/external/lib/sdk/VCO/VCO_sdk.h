@@ -4,19 +4,32 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef enum {
+    VCO_CHANNEL_NONE           = 0b00,
+    VCO_CHANNEL_P              = 0b01,
+    VCO_CHANNEL_N              = 0b10,
+    VCO_CHANNEL_DIFFERENTIAL   = 0b11
+} vco_channel_t;
+
+typedef enum {
+    VCO_STATUS_OK = 0,
+    VCO_STATUS_NO_NEW_SAMPLE,
+    VCO_STATUS_MISSED_UPDATE,
+    VCO_STATUS_NOT_INITIALIZED,
+    VCO_STATUS_INVALID_ARGUMENT,
+    VCO_STATUS_INVALID_CONFIGURATION
+} vco_status_t;
+
 typedef struct {
-    uint32_t refresh_cycles;      // VCO refresh period in system cycles
-    uint32_t last_counter_p;        // previous coarse/count value
-    uint32_t last_counter_n;     // previous coarse/count value for second channel if running in differential mode
-    uint32_t last_timestamp;      // timer_get_cycles() at previous read
-    uint32_t current_nA;          // the injected current into the skin
-    bool     has_prev;            // false until first valid sample
-    bool     is_differential;                // flag to know if running in differential
+    uint32_t        refresh_cycles;      // VCO refresh period in system cycles
+    uint32_t        last_counter_p;      // previous coarse/count value
+    uint32_t        last_counter_n;      // previous coarse/count value for second channel if running in differential mode
+    uint32_t        last_timestamp;      // timer_get_cycles() at previous read
+    bool            has_prev;            // false until first valid sample
+    vco_channel_t   channel;             // channel configuration
 } vco_sdk_t;
 
-void initialize_pipeline(bool differential, uint32_t refresh_rate_Hz, uint8_t idac_val);
-void vco_update_current(uint8_t idac_val);
-int vco_get_conductance_oversampled(uint32_t *conductance_nS, int oversample_ratio);
-int vco_get_conductance(uint32_t *conductance_nS);
+vco_status_t vco_initialize(vco_channel_t channel, uint32_t refresh_rate_Hz);
+vco_status_t vco_get_freq_Hz(uint32_t* frequency_Hz);
 
 #endif /* VCO_SDK_H_ */
