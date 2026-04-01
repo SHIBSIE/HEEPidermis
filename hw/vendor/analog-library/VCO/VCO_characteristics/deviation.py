@@ -153,7 +153,7 @@ plt.rcParams['font.family'] = 'serif'
 if 0:
     plt.figure(figsize=(6, 3))
     for j, tau in enumerate(selected_taus):
-        plt.plot(voltages, adev_results[:, j], 'o-', label=f'$\\tau = {tau}s$', c=colours[j])
+        plt.plot(voltages, adev_results[:, j], 'o-', label=f'$\\fs = {1/tau:g} Hz$', c=colours[j])
     plt.yscale('log')
     plt.xlabel('Input Voltage $V_{in}$ (V)')
     plt.ylabel('Allan Deviation $\sigma_y(\\tau)$')
@@ -166,7 +166,7 @@ if 0:
 # Plot 2: IRE (V) vs Vin
 plt.figure(figsize=(6, 3))
 for j, tau in enumerate(selected_taus):
-    plt.plot(voltages*1e3, ire_results[:, j], 'o-', markersize=4,label=f'$\\tau = {tau}s$',c=colours[j], zorder=len(selected_taus)-j)
+    plt.plot(voltages*1e3, ire_results[:, j], 'o-', markersize=4,label=r'$f_{s}$'+f'={1/tau:g} Hz',c=colours[j], zorder=len(selected_taus)-j)
     plt.plot(voltages*1e3, quant_results[:, j], c=colours[j],linestyle='--')
 
 plt.yscale('log')
