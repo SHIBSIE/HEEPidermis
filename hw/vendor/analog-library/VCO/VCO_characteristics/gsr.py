@@ -3,6 +3,15 @@
 import scipy.io as sio
 import matplotlib.pyplot as plt
 
+'''
+Data extracted from:
+
+Miranda Calero, José Angel, et al., 2022,
+"UC3M4Safety Database - WEMAC: Physiological signals",
+https://doi.org/10.21950/FNUHKE, e-cienciaDatos, V3
+'''
+
+
 # 1. Load the .mat file
 # squeeze_me=True flattens redundant dimensions (turns 1xN arrays into 1D)
 # struct_as_record=False allows us to access MATLAB structs using object dot notation (.gsr instead of ['gsr'])
@@ -28,6 +37,10 @@ print(all_raw_data)
 plt.figure()
 plt.plot(all_raw_data)
 plt.show()
+
+with open('data/gsr_pS_200Hz.txt', 'w+') as f:
+    f.writelines([f"{int(d*1e6)}\n" for d in all_raw_data])
+
 
 #In[]:
 

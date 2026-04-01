@@ -76,7 +76,7 @@ FIRMWARE			= $(ROOT_DIR)/build/sw/app/main.hex
 LINKER 				= flash_load
 endif
 VCD_MODE			?= 0 # QuestaSim-only - 0: no dump, 1: dump always active, 2: dump triggered by GPIO 0
-MAX_CYCLES			?= 1200000
+MAX_CYCLES			?= 10000000
 FUSESOC_FLAGS		?=
 FUSESOC_ARGS		?=
 
