@@ -36,8 +36,8 @@
 #define SAMPLE_LENGHT_N     2200
 
 // #define PLOT_GRAPH               // ⚠️ BE CAREFUL! YOU WILL INTRODUCE ALIASING!
-// #define PRINT_DURING_SAMPLE      // ⚠️ BE CAREFUL! YOU WILL INTRODUCE ALIASING!
-#define PRINT_AT_END
+#define PRINT_DURING_SAMPLE      // ⚠️ BE CAREFUL! YOU WILL INTRODUCE ALIASING!
+// #define PRINT_AT_END
 
 #define HEADER(g, w, f, a) printf("\nfclk:%d Hz, Wg:%d,Ww:%d,DF:%d,AS:%d",DSM_F_S,g,w,f,a );
 
