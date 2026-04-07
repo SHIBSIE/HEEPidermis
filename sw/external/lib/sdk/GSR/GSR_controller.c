@@ -3,10 +3,13 @@
 
 #include "GSR_controller.h"
 
+/* 
+Estimate the minimum detectable conductance variation at the current
+operating point using the local VCO sensitivity and the active sampling rate.
+*/
 gsr_status_t estimate_deltaG_min_nS(gsr_controller_t *ctrl) {
 
     uint32_t kvco_Hz_per_V;
-    gsr_status_t st;
 
     if (ctrl == 0) {
         return GSR_STATUS_INVALID_ARGUMENT;
@@ -16,9 +19,9 @@ gsr_status_t estimate_deltaG_min_nS(gsr_controller_t *ctrl) {
         return GSR_STATUS_INVALID_ARGUMENT;
     }
 
-    st = gsr_get_kvco_Hz_per_V(ctrl->vin_uV, &kvco_Hz_per_V);
-    if (st != GSR_STATUS_OK) {
-        return st;
+    vco_status_t vst = vco_get_kvco_Hz_per_V(ctrl->vin_uV, &kvco_Hz_per_V);
+    if (vst != VCO_STATUS_OK) {
+        return GSR_STATUS_NOT_INITIALIZED;
     }
 
     /* Ts = 1 / fs
@@ -39,11 +42,13 @@ gsr_status_t estimate_deltaG_min_nS(gsr_controller_t *ctrl) {
     return GSR_STATUS_OK;
 }
 
+// Update the baseline estimate using a simple exponential-style moving average.
 static uint32_t calculate_baseline(uint32_t prev_baseline, uint32_t sample) {
     
     return (uint32_t)(((uint64_t)7U * prev_baseline + sample) / 8U);
 }
 
+// Reconfigure the VCO refresh rate while keeping the selected channel unchanged.
 static gsr_status_t controller_set_refresh(vco_channel_t channel, uint32_t refresh_rate_Hz) {
 
     vco_status_t st = vco_initialize(channel, refresh_rate_Hz);
@@ -54,6 +59,10 @@ static gsr_status_t controller_set_refresh(vco_channel_t channel, uint32_t refre
 
 }
 
+/*
+Detect whether the current sample indicates the onset of a phasic event using either
+deviation from the baseline or slope magnitude
+*/
 static bool event_detected(const gsr_controller_t *ctrl){
 
     uint32_t amp = (ctrl->G_nS >= ctrl->baseline_nS)
@@ -65,6 +74,7 @@ static bool event_detected(const gsr_controller_t *ctrl){
 
 }
 
+// Check whether the signal has returned close enough to baseline
 static bool signal_settled(const gsr_controller_t *ctrl) {
 
     uint32_t amp = (ctrl->G_nS >= ctrl->baseline_nS)
@@ -76,6 +86,10 @@ static bool signal_settled(const gsr_controller_t *ctrl) {
 
 }
 
+/*
+Adjust the injected current during baseline mode to keep Vin inside the
+desired operating window.
+*/
 static void retune_current_for_baseline(gsr_controller_t *ctrl) {
     uint32_t vin_uV = ctrl->vin_uV;
     int32_t new_code;
@@ -103,7 +117,7 @@ static void retune_current_for_baseline(gsr_controller_t *ctrl) {
     }
 }
 
-
+// Load a default controller configuration for standard GSR operation.
 gsr_status_t gsr_set_default_settings(gsr_controller_t *ctrl) {
 
     if (ctrl == 0) {
@@ -124,6 +138,7 @@ gsr_status_t gsr_set_default_settings(gsr_controller_t *ctrl) {
     return GSR_STATUS_OK;
 }
 
+// Initialize controller state variables and start the GSR front-end.
 gsr_status_t gsr_controller_init(gsr_controller_t *ctrl) {
 
     if (ctrl == 0) {
@@ -144,6 +159,15 @@ gsr_status_t gsr_controller_init(gsr_controller_t *ctrl) {
 
 }
 
+/*
+Execute one control step.
+
+Sequence:
+1. read the latest conductance sample
+2. update signal estimates (current value, slope, baseline)
+3. evaluate event / settling conditions
+4. switch mode and refresh rate if needed
+*/
 gsr_status_t gsr_controller_step(gsr_controller_t *ctrl) {
 
     uint32_t sample_nS = 0;
@@ -173,8 +197,10 @@ gsr_status_t gsr_controller_step(gsr_controller_t *ctrl) {
         return GSR_STATUS_OK;
     }
 
+    // Slope is expressed in nS/s by multiplying the sample difference by fs.
     ctrl->slope_nS = ((int32_t)ctrl->G_nS - (int32_t)ctrl->prev_G_nS) * (int32_t)ctrl->current_refresh_rate_Hz;
 
+    // Only baseline mode is allowed to slowly adapt the tonic reference.
     if (ctrl->mode == GSR_CTRL_MODE_BASELINE) {
         ctrl->baseline_nS = calculate_baseline(ctrl->baseline_nS, ctrl->G_nS);
     }
@@ -186,35 +212,38 @@ gsr_status_t gsr_controller_step(gsr_controller_t *ctrl) {
         break;
 
     case GSR_CTRL_MODE_BASELINE:
-        retune_current_for_baseline(ctrl);
+        //This line was removed since Esmail will be working on this.
+        // retune_current_for_baseline(ctrl);
 
         if (event_detected(ctrl)) {
             st = controller_set_refresh(ctrl->channel, ctrl->phasic_refresh_rate_Hz);
-            ctrl->current_refresh_rate_Hz = ctrl->phasic_refresh_rate_Hz;
             if (st != GSR_STATUS_OK) return st;
 
+            ctrl->current_refresh_rate_Hz = ctrl->phasic_refresh_rate_Hz;
             ctrl->mode = GSR_CTRL_MODE_PHASIC;
             ctrl->recovery_counter = 0;
         }
         break;
-
+    
+    // Phasic mode increases sampling rate to better capture fast events.
     case GSR_CTRL_MODE_PHASIC:
         if (signal_settled(ctrl)) {
             st = controller_set_refresh(ctrl->channel, ctrl->recovery_refresh_rate_Hz);
-            ctrl->current_refresh_rate_Hz = ctrl->recovery_refresh_rate_Hz;
             if (st != GSR_STATUS_OK) return st;
 
+            ctrl->current_refresh_rate_Hz = ctrl->recovery_refresh_rate_Hz;
             ctrl->mode = GSR_CTRL_MODE_RECOVERY;
             ctrl->recovery_counter = 0;
         }
         break;
 
+    // Recovery mode uses an intermediate sampling rate until the signal is stable again.
     case GSR_CTRL_MODE_RECOVERY:
         if (!signal_settled(ctrl)) {
             st = controller_set_refresh(ctrl->channel, ctrl->phasic_refresh_rate_Hz);
-            ctrl->current_refresh_rate_Hz = ctrl->phasic_refresh_rate_Hz;
             if (st != GSR_STATUS_OK) return st;
 
+            ctrl->current_refresh_rate_Hz = ctrl->phasic_refresh_rate_Hz;
             ctrl->mode = GSR_CTRL_MODE_PHASIC;
             ctrl->recovery_counter = 0;
             break;
@@ -226,9 +255,9 @@ gsr_status_t gsr_controller_step(gsr_controller_t *ctrl) {
             retune_current_for_baseline(ctrl);
 
             st = controller_set_refresh(ctrl->channel, ctrl->baseline_refresh_rate_Hz);
-            ctrl->current_refresh_rate_Hz = ctrl->baseline_refresh_rate_Hz;
             if (st != GSR_STATUS_OK) return st;
 
+            ctrl->current_refresh_rate_Hz = ctrl->baseline_refresh_rate_Hz;
             ctrl->mode = GSR_CTRL_MODE_BASELINE;
             ctrl->recovery_counter = 0U;
         }

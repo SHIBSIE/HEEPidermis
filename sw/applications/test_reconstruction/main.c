@@ -1,4 +1,3 @@
-#include "VCO_sdk.h"
 #include "timer_sdk.h"
 #include "soc_ctrl.h"
 #include "REFs_ctrl.h"
@@ -6,40 +5,39 @@
 #include "x-heep.h"
 #include <stdio.h>
 
+#include "VCO_sdk.h"
+#include "GSR_sdk.h"
+#include "GSR_controller.h"
 
-// =================== OUTDATED NOW DOESN'T WORK =======================
-
-
-
-#define PRINTF_IN_SIM 1
-
-#define SYS_FCLK_HZ 10000000
-#define VCO_FS_HZ   1
-
-#if TARGET_SIM
-#define VCO_UPDATE_CC (SYS_FCLK_HZ/(1000*VCO_FS_HZ))
-#else
-#define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
-#endif
-
-#define IDAC_DEFAULT_CAL 0
-#define IREF_DEFAULT_CAL 255
+#define PRINTF_IN_SIM  0
+#define PRINTF_IN_FPGA 1
 
 #if TARGET_SIM && PRINTF_IN_SIM
-        #define PRINTF(fmt, ...)    printf(fmt, ## __VA_ARGS__)
+    #define PRINTF(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #elif PRINTF_IN_FPGA && !TARGET_SIM
-    #define PRINTF(fmt, ...)    printf(fmt, ## __VA_ARGS__)
+    #define PRINTF(fmt, ...) printf(fmt, ##__VA_ARGS__)
 #else
     #define PRINTF(...)
 #endif
 
-int main(void) {
-    uint32_t conductance_nS = 0;
-    int status = 0;
-
 #if TARGET_SIM
-    uint32_t loop_count = 0;
+    #define VCO_UPDATE_CC (SYS_FCLK_HZ/(1000*VCO_FS_HZ))
+#else
+    #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
 #endif
+
+#define SYS_FCLK_HZ         10000000
+#define IDAC_DEFAULT_CODE   7
+#define IREF_DEFAULT_CAL    255
+#define IDAC_DEFAULT_CAL    0
+
+#define N_BASIC_SAMPLES   20000000
+#define OVERSAMPLE_RATIO  4
+#define N_CTRL_STEPS      20000000
+
+
+
+static void hw_init(void) {
 
     soc_ctrl_t soc_ctrl;
     soc_ctrl.base_addr = mmio_region_from_addr((uintptr_t)SOC_CTRL_START_ADDRESS);
@@ -57,31 +55,129 @@ int main(void) {
     timer_irq_enable();
     timer_start();
 
-    uint32_t idac_val = 4;
-    iDACs_set_currents(idac_val, 0);
-    // differential = false
-    // channel = true  -> use VCOp
-    // refresh rate = 1 Hz
-    // idac = 4
-    initialize_pipeline(false, VCO_FS_HZ, idac_val);
+}
 
-    while (1) {
-        status = vco_get_conductance(&conductance_nS);
+static int test_gsr_single(void) {
 
-        if (status == 0) {
-            PRINTF("%lu nS\n", conductance_nS);
-        } else if (status == 1) {
-            PRINTF("1\n"); // no new refresh yet
-        } else if (status == 2) {
-            PRINTF("2\n"); // missed one or more updates
-        } else {
-            PRINTF("Error\n"); //error in initialization
-        }
+    //PRINTF("GSR single-sample conductance\n");
 
-        #if TARGET_SIM
-        if (loop_count++ >= 500) break;
-        #endif
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("  FAIL: gsr_init returned %d\n", st);
+        return -1;
     }
 
+    int valid = 0;
+    int attempts = 0;
+    while (1) {
+        uint32_t g_nS = 0;
+        uint32_t vin_uV = 0;
+        st = gsr_get_conductance_nS(&g_nS, &vin_uV);
+
+        if (st == GSR_STATUS_OK) {
+            PRINTF("%lu\n", g_nS);
+            valid++;
+        } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
+
+        } else if (st == GSR_STATUS_MISSED_UPDATE) {
+            //PRINTF("  WARN: missed update\n");
+        } else {
+            PRINTF("  FAIL: gsr_get_conductance_nS returned %d\n", st);
+            return -1;
+        }
+    }
+
+    PRINTF("GSR single-sample PASS (%d samples)\n", valid);
     return 0;
+}
+
+static int test_gsr_oversampled(void)
+{
+    PRINTF("GSR oversampled conductance (ratio=%d)\n", OVERSAMPLE_RATIO);
+
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("  FAIL: gsr_init returned %d\n", st);
+        return -1;
+    }
+
+    uint32_t g_avg_nS = 0;
+    st = gsr_get_conductance_oversampled(&g_avg_nS, OVERSAMPLE_RATIO);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("  FAIL: gsr_get_conductance_oversampled returned %d\n", st);
+        return -1;
+    }
+
+    PRINTF("  G_avg = %lu nS\n", g_avg_nS);
+    PRINTF("GSR oversampled PASS\n");
+    return 0;
+}
+
+static int test_gsr_controller(void)
+{
+    PRINTF("GSR controller (%d steps)\n", N_CTRL_STEPS);
+
+    gsr_controller_t ctrl;
+
+    gsr_status_t st = gsr_set_default_settings(&ctrl);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("  FAIL: gsr_set_default_settings returned %d\n", st);
+        return -1;
+    }
+
+    st = gsr_controller_init(&ctrl);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("  FAIL: gsr_controller_init returned %d\n", st);
+        return -1;
+    }
+
+    int steps_done = 0;
+    int attempts   = 0;
+    while (steps_done < N_CTRL_STEPS) {
+        st = gsr_controller_step(&ctrl);
+        if (st == GSR_STATUS_OK) {
+            PRINTF("  step %2d: mode=%d  G=%lu nS  base=%lu nS  slope=%ld nS/s\n",
+                   steps_done,
+                   (int)ctrl.mode,
+                   ctrl.G_nS,
+                   ctrl.baseline_nS,
+                   (long)ctrl.slope_nS);
+            steps_done++;
+        } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
+            
+        } else if (st == GSR_STATUS_MISSED_UPDATE) {
+            PRINTF("  WARN: missed update at step %d\n", steps_done);
+        } else {
+            PRINTF("  FAIL: gsr_controller_step returned %d\n", st);
+            return -1;
+        }
+        if (++attempts > 200000) {
+            PRINTF("  FAIL: timed out waiting for controller steps\n");
+            return -1;
+        }
+    }
+
+    PRINTF("GSR controller PASS (%d steps)\n", steps_done);
+    return 0;
+}
+
+int main(void)
+{
+    hw_init();
+
+    //PRINTF("=== test_reconstruction ===\n");
+
+    int failures = 0;
+
+    //failures += (test_gsr_single()      != 0) ? 1 : 0;
+    //failures += (test_gsr_oversampled() != 0) ? 1 : 0;
+    failures += (test_gsr_controller()  != 0) ? 1 : 0;
+
+    if (failures == 0) {
+        PRINTF("=== ALL TESTS PASSED ===\n");
+    } else {
+        PRINTF("=== %d TEST(S) FAILED ===\n", failures);
+    }
+
+    return failures;
 }
