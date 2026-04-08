@@ -271,3 +271,17 @@ Assuming that your firmware is already available, steps 1., 3., and 4. can be re
 
 Have questions? curiosities? ideas on how to exploit HEEPidermis? Want to contribute on following versions of the SoC?
 Drop an email :) juan.sapriza@epfl.ch
+
+# 📄 Reference
+
+Want to know more details? Found HEEPidermis useful for your research? Cite our [LASCAS paper](https://ieeexplore.ieee.org/document/11457136).
+
+```
+@INPROCEEDINGS{11457136,
+  author={Sapriza, Juan and Grassano, Beatrice and Naclerio, Alessio and Quadri, Filippo and Terzano, Tommaso and Mallasén, David and Schiavone, Davide and Leplae, Robin and Moullet, Jérémie and Levisse, Alexandre and Müller, Christoph and Graziano, Mariagrazia and Miguez, Matías and Atienza, David},
+  booktitle={2026 IEEE 17th Latin America Symposium on Circuits and System (LASCAS)},
+  title={HEEPidermis: A Versatile SoC for BioZ Recording},
+  year={2026},
+  pages={1-5},
+  doi={10.1109/LASCAS67804.2026.11457136}}
+```
