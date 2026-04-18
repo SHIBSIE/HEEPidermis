@@ -55,6 +55,11 @@ static void hw_init(void) {
     timer_irq_enable();
     timer_start();
 
+    gpio_cfg_t pin_cfg = {
+        .pin = 0,
+        .mode = GpioModeOutPushPull
+    };
+    gpio_config(pin_cfg);
 }
 
 static int test_gsr_single(void) {
@@ -161,6 +166,35 @@ static int test_gsr_controller(void)
     return 0;
 }
 
+static int test_gsr_latency(void)
+{
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    if (st != GSR_STATUS_OK) {
+        PRINTF("FAIL: gsr_init returned %d\n", st);
+        return -1;
+    }
+
+    while (1) {
+        uint32_t g_nS = 0;
+        uint32_t vin_uV = 0;
+
+        gpio_write(0, 1);
+        st = gsr_get_conductance_nS(&g_nS, &vin_uV);
+        gpio_write(0, 0);
+
+        if (st == GSR_STATUS_OK) {
+            PRINTF("%lu\n", g_nS);
+        } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
+        } else if (st == GSR_STATUS_MISSED_UPDATE) {
+        } else {
+            PRINTF("FAIL: gsr_get_conductance_nS returned %d\n", st);
+            return -1;
+        }
+    }
+
+    return 0;
+}
+
 int main(void)
 {
     hw_init();
@@ -169,9 +203,10 @@ int main(void)
 
     int failures = 0;
 
-    //failures += (test_gsr_single()      != 0) ? 1 : 0;
+    failures += (test_gsr_single()      != 0) ? 1 : 0;
     //failures += (test_gsr_oversampled() != 0) ? 1 : 0;
-    failures += (test_gsr_controller()  != 0) ? 1 : 0;
+    // failures += (test_gsr_controller()  != 0) ? 1 : 0;
+    //failures += (test_gsr_latency() != 0) ? 1 : 0;
 
     if (failures == 0) {
         PRINTF("=== ALL TESTS PASSED ===\n");

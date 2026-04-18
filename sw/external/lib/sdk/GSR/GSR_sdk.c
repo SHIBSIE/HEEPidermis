@@ -5,14 +5,34 @@
 
 static uint32_t current_nA = 0;
 
+#ifdef GSR_USE_VCO_DLC
+static uint8_t  *s_dlc_buf      = 0;
+static uint16_t  s_dlc_buf_size = 0;
+static uint16_t  s_dlc_read_idx = 0;
+#endif
+
 /*
 Initialize the GSR measurement chain.
 
 The selected iDAC code sets the injected current, and the VCO SDK is then
 initialized with the requested channel and refresh rate.
 */
+gsr_status_t gsr_init_dlc(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8_t idac_val, const gsr_dlc_config_t *dlc_cfg){
+
+    current_nA = 40*idac_val;
+    iDACs_set_currents(idac_val, 0);
+    s_dlc_buf      = dlc_cfg->results_buf;
+    s_dlc_buf_size = dlc_cfg->buf_size;
+    s_dlc_read_idx = 0;
+    vco_status_t st = vco_dlc_initialize(channel, refresh_rate_Hz, dlc_cfg->dlc_cfg, dlc_cfg->results_buf, dlc_cfg->buf_size, dlc_cfg->input_samples);
+    if (st == VCO_STATUS_OK) return GSR_STATUS_OK;
+    if (st == VCO_STATUS_INVALID_ARGUMENT) return GSR_STATUS_INVALID_ARGUMENT;
+    return GSR_STATUS_NOT_INITIALIZED;
+
+}
+
 gsr_status_t gsr_init(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8_t idac_val){
-    
+
     current_nA = 40*idac_val;
     iDACs_set_currents(idac_val, 0);
     vco_status_t st = vco_initialize(channel, refresh_rate_Hz);
@@ -30,6 +50,10 @@ void gsr_update_current(uint8_t idac_val){
     
 }
 
+uint32_t gsr_current_from_idac_code_nA(uint8_t idac_code) {
+    return (uint32_t)idac_code * 40;
+}
+
 /*
 Read one GSR sample in nS.
 The function first reconstructs Vin from the VCO measurement, then computes
@@ -43,7 +67,13 @@ gsr_status_t gsr_get_conductance_nS(uint32_t *conductance_nS, uint32_t* vin_uV_r
 
     // Get the latest reconstructed front-end voltage from the VCO layer.
     uint32_t vin_uV = 0;
+#ifdef GSR_USE_VCO_DLC
+    uint8_t packed_event = s_dlc_buf[s_dlc_read_idx];
+    s_dlc_read_idx = (s_dlc_read_idx + 1) % s_dlc_buf_size;
+    vco_status_t st = vco_dlc_process_event(packed_event, &vin_uV);
+#else
     vco_status_t st = vco_get_Vin_uV(&vin_uV);
+#endif
 
     if (st == VCO_STATUS_NO_NEW_SAMPLE) return GSR_STATUS_NO_NEW_SAMPLE;
     if (st == VCO_STATUS_MISSED_UPDATE) return GSR_STATUS_MISSED_UPDATE;
