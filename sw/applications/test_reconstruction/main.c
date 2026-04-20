@@ -27,7 +27,7 @@
 #endif
 
 #define SYS_FCLK_HZ         10000000
-#define IDAC_DEFAULT_CODE   7
+#define IDAC_DEFAULT_CODE   125
 #define IREF_DEFAULT_CAL    255
 #define IDAC_DEFAULT_CAL    0
 
@@ -35,7 +35,7 @@
 #define OVERSAMPLE_RATIO  4
 #define N_CTRL_STEPS      20000000
 
-
+volatile uint32_t debug __attribute__((section(".xheep_debug_mem")));
 
 static void hw_init(void) {
 
@@ -81,6 +81,7 @@ static int test_gsr_single(void) {
 
         if (st == GSR_STATUS_OK) {
             PRINTF("%lu\n", g_nS);
+            debug = g_nS;
             valid++;
         } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
 

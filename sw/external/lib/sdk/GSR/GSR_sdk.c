@@ -5,11 +5,10 @@
 
 static uint32_t current_nA = 0;
 
-#ifdef GSR_USE_VCO_DLC
+static bool      dlc_used       = false;
 static uint8_t  *s_dlc_buf      = 0;
 static uint16_t  s_dlc_buf_size = 0;
 static uint16_t  s_dlc_read_idx = 0;
-#endif
 
 /*
 Initialize the GSR measurement chain.
@@ -19,6 +18,7 @@ initialized with the requested channel and refresh rate.
 */
 gsr_status_t gsr_init_dlc(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8_t idac_val, const gsr_dlc_config_t *dlc_cfg){
 
+    dlc_used = true;
     current_nA = 40*idac_val;
     iDACs_set_currents(idac_val, 0);
     s_dlc_buf      = dlc_cfg->results_buf;
@@ -67,13 +67,14 @@ gsr_status_t gsr_get_conductance_nS(uint32_t *conductance_nS, uint32_t* vin_uV_r
 
     // Get the latest reconstructed front-end voltage from the VCO layer.
     uint32_t vin_uV = 0;
-#ifdef GSR_USE_VCO_DLC
-    uint8_t packed_event = s_dlc_buf[s_dlc_read_idx];
-    s_dlc_read_idx = (s_dlc_read_idx + 1) % s_dlc_buf_size;
-    vco_status_t st = vco_dlc_process_event(packed_event, &vin_uV);
-#else
-    vco_status_t st = vco_get_Vin_uV(&vin_uV);
-#endif
+    vco_status_t st;
+    if (dlc_used) {
+        uint8_t packed_event = s_dlc_buf[s_dlc_read_idx];
+        s_dlc_read_idx = (s_dlc_read_idx + 1) % s_dlc_buf_size;
+        st = vco_dlc_process_event(packed_event, &vin_uV);
+    } else {
+        st = vco_get_Vin_uV(&vin_uV);
+    }
 
     if (st == VCO_STATUS_NO_NEW_SAMPLE) return GSR_STATUS_NO_NEW_SAMPLE;
     if (st == VCO_STATUS_MISSED_UPDATE) return GSR_STATUS_MISSED_UPDATE;

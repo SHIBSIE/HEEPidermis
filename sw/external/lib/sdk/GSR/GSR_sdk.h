@@ -1,8 +1,6 @@
 #ifndef GSR_SDK_H_
 #define GSR_SDK_H_
 
-#define GSR_USE_VCO_DLC 1
-
 #include <stdint.h>
 #include <stdbool.h>
 #include "VCO_sdk.h"
@@ -27,15 +25,12 @@ typedef enum {
     GSR_STATUS_OUT_OF_RANGE
 } gsr_status_t;
 
-#ifdef GSR_USE_VCO_DLC
-// Groups the dLC-specific parameters required at initialization.
 typedef struct {
     const dlc_config_t *dlc_cfg;
     uint8_t            *results_buf;
     uint16_t            buf_size;
     uint32_t            input_samples;
 } gsr_dlc_config_t;
-#endif
 
 //Initialize the GSR front-end with the selected VCO channel, sampling rate, current, and dLC config.
 gsr_status_t gsr_init_dlc(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8_t idac_val, const gsr_dlc_config_t *dlc_cfg);
