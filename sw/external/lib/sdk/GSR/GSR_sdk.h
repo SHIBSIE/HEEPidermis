@@ -48,6 +48,6 @@ uint32_t gsr_current_from_idac_code_nA(uint8_t idac_code);
 gsr_status_t gsr_get_conductance_nS(uint32_t *conductance_nS, uint32_t *vin_uV_ret);
 
 //Average multiple valid conductance samples to reduce noise.
-gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, int oversample_ratio);
+gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, uint32_t *vin_uV_ret, int oversample_ratio);
 
 #endif /* GSR_SDK_H_ */

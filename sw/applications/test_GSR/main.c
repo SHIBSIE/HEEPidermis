@@ -100,6 +100,8 @@ uint32_t interpolate_Vin_uV(uint32_t f_target) {
     #if VCO_SUPPLY_FROM_LDO
         result_uV += VCO_CAL_FROM_LDO_ADD_uV;
     #endif
+
+    return result_uV;
 }
 
 uint32_t update_dac1(val){

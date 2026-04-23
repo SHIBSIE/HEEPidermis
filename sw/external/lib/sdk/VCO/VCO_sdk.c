@@ -4,6 +4,7 @@
 
 #define TABLE_SIZE 25
 #define SYS_FCLK_HZ 10000000
+#define VCO_BHV_FREQ_GAIN 100
 
 static uint32_t g_refresh_rate_Hz = 0;
 static vco_sdk_t vco_data;
@@ -224,6 +225,10 @@ vco_status_t vco_get_Vin_uV(uint32_t* vin_uV){
     default:
         return VCO_STATUS_INVALID_CONFIGURATION;
     }
+
+    #if TARGET_SIM
+        frequency_Hz *= VCO_BHV_FREQ_GAIN;
+    #endif
 
     *vin_uV  = __interpolate_Vin_uV(frequency_Hz);
 

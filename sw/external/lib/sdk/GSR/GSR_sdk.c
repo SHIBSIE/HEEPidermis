@@ -33,6 +33,7 @@ gsr_status_t gsr_init_dlc(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8
 
 gsr_status_t gsr_init(vco_channel_t channel, uint32_t refresh_rate_Hz, uint8_t idac_val){
 
+    dlc_used = false;
     current_nA = 40*idac_val;
     iDACs_set_currents(idac_val, 0);
     vco_status_t st = vco_initialize(channel, refresh_rate_Hz);
@@ -102,21 +103,24 @@ This improves robustness to sample-to-sample noise at the cost of latency.
 Only valid samples are accumulated; NO_NEW_SAMPLE results are ignored.
 
 */
-gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, int oversample_ratio){
+gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, uint32_t* vin_uV_ret, int oversample_ratio){
     
     if (conductance_nS == 0 || oversample_ratio <= 0) {
         return GSR_STATUS_INVALID_ARGUMENT;
     }
 
-    uint64_t acc = 0;
+    uint64_t acc_gsr = 0;
+    uint64_t acc_vin = 0;
     int valid_samples = 0;
 
     while (valid_samples < oversample_ratio) {
         uint32_t sample_nS = 0;
-        gsr_status_t ret = gsr_get_conductance_nS(&sample_nS, 0);
+        uint32_t sample_uV = 0;
+        gsr_status_t ret = gsr_get_conductance_nS(&sample_nS, &sample_uV);
 
         if (ret == GSR_STATUS_OK) {
-            acc += sample_nS;
+            acc_gsr += sample_nS;
+            acc_vin += sample_uV;
             valid_samples++;
         }
         else if (ret == GSR_STATUS_NO_NEW_SAMPLE) {
@@ -128,7 +132,8 @@ gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, int overs
         }
     }
 
-    *conductance_nS = (uint32_t)(acc / (uint64_t)oversample_ratio);
+    *conductance_nS = (uint32_t)(acc_gsr / (uint64_t)oversample_ratio);
+    *vin_uV_ret = (uint32_t)(acc_vin / (uint64_t)oversample_ratio);
     return GSR_STATUS_OK;
 
 }
