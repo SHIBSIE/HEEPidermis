@@ -27,7 +27,7 @@
 #endif
 
 #define SYS_FCLK_HZ         10000000
-#define IDAC_DEFAULT_CODE   125
+#define IDAC_DEFAULT_CODE   50
 #define IREF_DEFAULT_CAL    255
 #define IDAC_DEFAULT_CAL    0
 
@@ -66,7 +66,7 @@ static int test_gsr_single(void) {
 
     //PRINTF("GSR single-sample conductance\n");
 
-    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 20, IDAC_DEFAULT_CODE);
     if (st != GSR_STATUS_OK) {
         PRINTF("  FAIL: gsr_init returned %d\n", st);
         return -1;
@@ -80,8 +80,10 @@ static int test_gsr_single(void) {
         st = gsr_get_conductance_nS(&g_nS, &vin_uV);
 
         if (st == GSR_STATUS_OK) {
-            PRINTF("%lu\n", g_nS);
-            debug = g_nS;
+            // PRINTF("%lu\n", g_nS);
+            uint32_t res_ohms = 1000000000UL / g_nS;
+            PRINTF("%lu\n", res_ohms);
+            debug = vin_uV;
             valid++;
         } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
 

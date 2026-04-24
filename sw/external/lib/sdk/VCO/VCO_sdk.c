@@ -135,7 +135,7 @@ vco_status_t vco_initialize(vco_channel_t channel, uint32_t refresh_rate_Hz){
     // set the VCO refresh rate
     g_refresh_rate_Hz = refresh_rate_Hz;
     #if TARGET_SIM
-        uint32_t refresh_rate_CC = (SYS_FCLK_HZ/(1000*refresh_rate_Hz));
+        uint32_t refresh_rate_CC = (SYS_FCLK_HZ/(100*refresh_rate_Hz));
     #else
         uint32_t refresh_rate_CC = (SYS_FCLK_HZ/refresh_rate_Hz);
     #endif
@@ -225,10 +225,6 @@ vco_status_t vco_get_Vin_uV(uint32_t* vin_uV){
     default:
         return VCO_STATUS_INVALID_CONFIGURATION;
     }
-
-    #if TARGET_SIM
-        frequency_Hz *= VCO_BHV_FREQ_GAIN;
-    #endif
 
     *vin_uV  = __interpolate_Vin_uV(frequency_Hz);
 
