@@ -123,8 +123,7 @@ gsr_status_t gsr_get_conductance_oversampled(uint32_t *conductance_nS, uint32_t*
             acc_vin += sample_uV;
             valid_samples++;
         }
-        else if (ret == GSR_STATUS_NO_NEW_SAMPLE) {
-            // No new refresh yet, keep waiting
+        else if (ret == GSR_STATUS_NO_NEW_SAMPLE || ret == GSR_STATUS_MISSED_UPDATE) {
             continue;
         }
         else {

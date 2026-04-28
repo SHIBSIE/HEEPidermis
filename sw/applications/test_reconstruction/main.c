@@ -20,19 +20,14 @@
     #define PRINTF(...)
 #endif
 
-#if TARGET_SIM
-    #define VCO_UPDATE_CC (SYS_FCLK_HZ/(1000*VCO_FS_HZ))
-#else
-    #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
-#endif
-
 #define SYS_FCLK_HZ         10000000
-#define IDAC_DEFAULT_CODE   50
+#define IDAC_DEFAULT_CODE   45
 #define IREF_DEFAULT_CAL    255
-#define IDAC_DEFAULT_CAL    0
+#define IDAC_DEFAULT_CAL    15
 
+#define SAMPLING_FREQ     15
 #define N_BASIC_SAMPLES   20000000
-#define OVERSAMPLE_RATIO  4
+#define OVERSAMPLE_RATIO  3
 #define N_CTRL_STEPS      20000000
 
 volatile uint32_t debug __attribute__((section(".xheep_debug_mem")));
@@ -66,7 +61,7 @@ static int test_gsr_single(void) {
 
     //PRINTF("GSR single-sample conductance\n");
 
-    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 20, IDAC_DEFAULT_CODE);
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, SAMPLING_FREQ, IDAC_DEFAULT_CODE);
     if (st != GSR_STATUS_OK) {
         PRINTF("  FAIL: gsr_init returned %d\n", st);
         return -1;
@@ -80,10 +75,8 @@ static int test_gsr_single(void) {
         st = gsr_get_conductance_nS(&g_nS, &vin_uV);
 
         if (st == GSR_STATUS_OK) {
-            // PRINTF("%lu\n", g_nS);
-            uint32_t res_ohms = 1000000000UL / g_nS;
-            PRINTF("%lu\n", res_ohms);
-            debug = vin_uV;
+            PRINTF("%lu\n", g_nS);
+            debug = g_nS;
             valid++;
         } else if (st == GSR_STATUS_NO_NEW_SAMPLE) {
 
@@ -95,30 +88,33 @@ static int test_gsr_single(void) {
         }
     }
 
-    PRINTF("GSR single-sample PASS (%d samples)\n", valid);
+    //PRINTF("GSR single-sample PASS (%d samples)\n", valid);
     return 0;
 }
 
 static int test_gsr_oversampled(void)
 {
-    PRINTF("GSR oversampled conductance (ratio=%d)\n", OVERSAMPLE_RATIO);
+    //PRINTF("GSR oversampled conductance (ratio=%d)\n", OVERSAMPLE_RATIO);
 
-    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, SAMPLING_FREQ, IDAC_DEFAULT_CODE);
     if (st != GSR_STATUS_OK) {
         PRINTF("  FAIL: gsr_init returned %d\n", st);
         return -1;
     }
 
-    uint32_t g_avg_nS = 0;
-    uint32_t vin_avg_uV = 0;
-    st = gsr_get_conductance_oversampled(&g_avg_nS, &vin_avg_uV, OVERSAMPLE_RATIO);
-    if (st != GSR_STATUS_OK) {
-        PRINTF("  FAIL: gsr_get_conductance_oversampled returned %d\n", st);
-        return -1;
+    while (1) {
+        uint32_t g_avg_nS = 0;
+        uint32_t vin_avg_uV = 0;
+        st = gsr_get_conductance_oversampled(&g_avg_nS, &vin_avg_uV, OVERSAMPLE_RATIO);
+        if (st != GSR_STATUS_OK) {
+            PRINTF("  FAIL: gsr_get_conductance_oversampled returned %d\n", st);
+            return -1;
+        }
+        if (st == GSR_STATUS_OK) {
+            PRINTF("%lu\n", g_avg_nS);
+            debug = g_avg_nS;
+        }
     }
-
-    PRINTF("  G_avg = %lu nS\n", g_avg_nS);
-    PRINTF("GSR oversampled PASS\n");
     return 0;
 }
 
@@ -207,8 +203,8 @@ int main(void)
 
     int failures = 0;
 
-    failures += (test_gsr_single()      != 0) ? 1 : 0;
-    //failures += (test_gsr_oversampled() != 0) ? 1 : 0;
+    //failures += (test_gsr_single()      != 0) ? 1 : 0;
+    failures += (test_gsr_oversampled() != 0) ? 1 : 0;
     // failures += (test_gsr_controller()  != 0) ? 1 : 0;
     //failures += (test_gsr_latency() != 0) ? 1 : 0;
 
