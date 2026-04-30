@@ -62,9 +62,9 @@ DPI_CINC			:= -I$(dir $(shell which verilator))../share/verilator/include/vltstd
 
 # Simulation configuration
 LOG_LEVEL			?= LOG_FULL
-BOOT_MODE			?= jtag # jtag: wait for JTAG (default), flash: boot from flash, force: load firmware into SRAM
+BOOT_MODE			?= force # jtag: wait for JTAG (default), flash: boot from flash, force: load firmware into SRAM
 FIRMWARE			?= $(ROOT_DIR)/build/sw/app/main.hex
-LINKER 				?= flash_load
+LINKER 				?= on_chip
 ifeq ($(BOOT_MODE), jtag)
 FIRMWARE			= $(ROOT_DIR)/build/sw/app/main.hex.srec
 LINKER 				= on_chip
@@ -76,7 +76,7 @@ FIRMWARE			= $(ROOT_DIR)/build/sw/app/main.hex
 LINKER 				= flash_load
 endif
 VCD_MODE			?= 0 # QuestaSim-only - 0: no dump, 1: dump always active, 2: dump triggered by GPIO 0
-MAX_CYCLES			?= 10000000
+MAX_CYCLES			?= 100000000
 FUSESOC_FLAGS		?=
 FUSESOC_ARGS		?=
 
@@ -171,6 +171,7 @@ conda: environment.yml
 	fi
 
 # Regenerate environment.yml by passing both requirement files to the script
+.PHONY: environment.yml
 environment.yml:
 	bash util/python-requirements2conda.sh $(REQS_XHEEP) $(REQS_CHEEP)
 
@@ -356,7 +357,7 @@ charts: build/performance-analysis/power.csv build/performance-analysis/throughp
 .PHONY: app
 app: $(BUILD_DIR)/sw/app/
 ifneq ($(APP_MAKE),)
-	$(MAKE) -C $(dir $(APP_MAKE))
+	$(MAKE) -C $(dir $(APP_MAKE)) LINKER=$(LINKER)
 endif
 ifeq ($(TOOLCHAIN), GCC)
 	@echo "### Building application for SRAM execution with GCC compiler..."
@@ -366,6 +367,7 @@ ifeq ($(TOOLCHAIN), GCC)
 else
 	$(error ### ERROR: Unsupported toolchain: $(TOOLCHAIN))
 endif
+	@echo "Compiled for BOOT_MODE=$(BOOT_MODE)"
 
 ## Dummy target to force software rebuild
 $(PARAMS):
@@ -409,6 +411,12 @@ vendor-update:
 		echo "### ERROR: Verilator simulation with flash boot is not supported" >&2; \
 		exit 1; \
 	fi
+
+.PHONY:plotter
+plotter:
+	voila scripts/plotter/main.ipynb --no-browser --port 8866 &\
+	xdg-open http://localhost:8866/
+
 
 ## Create directories
 %/:
