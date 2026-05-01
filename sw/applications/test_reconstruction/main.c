@@ -9,7 +9,7 @@
 #include "GSR_sdk.h"
 #include "GSR_controller.h"
 
-#define PRINTF_IN_SIM  0
+#define PRINTF_IN_SIM  1
 #define PRINTF_IN_FPGA 1
 
 #if TARGET_SIM && PRINTF_IN_SIM

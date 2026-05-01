@@ -26,7 +26,7 @@
 #include "GSR_sdk.h"
 
 
-#define PRINTF_IN_SIM  0
+#define PRINTF_IN_SIM  1
 #define PRINTF_IN_FPGA 1
 
 
@@ -43,7 +43,7 @@
 #define VCO_FS_HZ          500          // VCO sampling rate
 #define IDAC_DEFAULT_CODE  7            // iDAC code → I = 40×7 = 280 nA
 #define IREF_DEFAULT_CAL   255
-#define IDAC_DEFAULT_CAL   0
+#define IDAC_DEFAULT_CAL   15
 
 // dLC configuration
 #define DLC_LOG_LVL_W      7            // level width = 128 counts
@@ -117,7 +117,7 @@ static int process_window(void) {
 
 int main(void) {
 
-    PRINTF("HELLO");
+    PRINTF("HELLO\n");
     hw_init();
 
     // Clear event buffer

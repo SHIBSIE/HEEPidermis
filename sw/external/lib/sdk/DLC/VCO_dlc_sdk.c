@@ -2,6 +2,8 @@
 #include "VCO_decoder.h"
 #include "timer_sdk.h"
 
+#define VCO_DECODER_PHASES 62u
+
 static vco_dlc_sdk_t s_state;
 
 vco_status_t vco_dlc_initialize(
@@ -29,19 +31,7 @@ vco_status_t vco_dlc_initialize(
     // We add a wait for the VCO to settle before setting initial level
     timer_wait_us(100);
 
-    uint32_t counter_p = 0, counter_n = 0;
-    if (channel == VCO_CHANNEL_P || channel == VCO_CHANNEL_DIFFERENTIAL)
-        counter_p = VCOp_get_coarse();
-    if (channel == VCO_CHANNEL_N || channel == VCO_CHANNEL_DIFFERENTIAL)
-        counter_n = VCOn_get_coarse();
-
-    int32_t initial_count;
-    switch (channel) {
-    case VCO_CHANNEL_P:            initial_count = (int32_t)counter_p;                       break;
-    case VCO_CHANNEL_N:            initial_count = (int32_t)counter_n;                       break;
-    case VCO_CHANNEL_DIFFERENTIAL: initial_count = (int32_t)counter_n - (int32_t)counter_p; break;
-    default:                       initial_count = 0;                                         break;
-    }
+    int32_t initial_count = (int32_t)VCO_get_count();
 
     s_state.current_level = initial_count >> dlc_cfg->log_level_width;
     dlc_set_initial_level((uint32_t)s_state.current_level);
@@ -76,8 +66,12 @@ vco_status_t vco_dlc_process_event(uint8_t packed_event, uint32_t *vin_uV) {
         return VCO_STATUS_MISSED_UPDATE;
     }
 
-    // Frequency = counts_per_period × refresh_rate.
-    uint32_t freq_Hz = (uint32_t)s_state.current_level * s_state.level_width * s_state.refresh_rate_Hz;
+    // VCO_DECODER_CNT is expressed in phase-count units. Convert back to
+    // oscillator cycles before multiplying by the sampling rate.
+    uint64_t phase_counts_per_sample =
+        (uint64_t)(uint32_t)s_state.current_level * s_state.level_width;
+    uint32_t freq_Hz =
+        (uint32_t)((phase_counts_per_sample * s_state.refresh_rate_Hz) / VCO_DECODER_PHASES);
 
     *vin_uV = __interpolate_Vin_uV(freq_Hz);
     return VCO_STATUS_OK;

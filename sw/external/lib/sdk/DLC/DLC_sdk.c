@@ -107,22 +107,21 @@ dlc_status_t dlc_decode_event(uint8_t packed_event, int16_t *dlvl, uint16_t *dt)
     if (!s_state.initialized)  return DLC_STATUS_NOT_INITIALIZED;
     if (!dlvl || !dt)          return DLC_STATUS_INVALID_ARGUMENT;
 
-    *dt = (uint16_t)(packed_event & s_state.dt_mask);
-
     if (s_state.dlvl_format == 0) {
-        // Sign-magnitude 
-        uint16_t mag  = (uint16_t)((packed_event >> DLC_TIME_BITS) & s_state.dlvl_mask);
-        uint8_t  sign = (packed_event >> (DLC_TIME_BITS + s_state.dlvl_n_bits)) & 1u;
+        // RTL packs sign-magnitude events as {dt, sign, magnitude}.
+        uint16_t mag  = (uint16_t)(packed_event & s_state.dlvl_mask);
+        uint8_t  sign = (packed_event >> s_state.dlvl_n_bits) & 1u;
+        *dt = (uint16_t)((packed_event >> (s_state.dlvl_n_bits + 1u)) & s_state.dt_mask);
         *dlvl = sign ? -(int16_t)mag : (int16_t)mag;
     } else {
-        // Two's complement
-        uint8_t raw = (packed_event >> DLC_TIME_BITS) & ((1u << DLC_AMPLITUDE_BITS) - 1u);
-        if (raw & (1u << (DLC_AMPLITUDE_BITS - 1)))
-            raw |= (uint8_t)(~((1u << DLC_AMPLITUDE_BITS) - 1u));
+        // RTL packs two's-complement events as {dt, delta-level}.
+        uint8_t raw = packed_event & ((1u << s_state.dlvl_n_bits) - 1u);
+        *dt = (uint16_t)((packed_event >> s_state.dlvl_n_bits) & s_state.dt_mask);
+        if (raw & (1u << (s_state.dlvl_n_bits - 1u)))
+            raw |= (uint8_t)(~((1u << s_state.dlvl_n_bits) - 1u));
         *dlvl = (int16_t)(int8_t)raw;
     }
 
-    if (*dt == 0)   return DLC_STATUS_INVALID_EVENT;
     if (*dlvl == 0) return DLC_STATUS_NO_EVENT;
 
     return DLC_STATUS_OK;
