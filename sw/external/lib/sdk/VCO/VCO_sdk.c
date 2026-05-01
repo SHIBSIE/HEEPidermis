@@ -134,7 +134,7 @@ vco_status_t vco_initialize(vco_channel_t channel, uint32_t refresh_rate_Hz){
     // set the VCO refresh rate
     g_refresh_rate_Hz = refresh_rate_Hz;
     #if TARGET_SIM
-        uint32_t refresh_rate_CC = (SYS_FCLK_HZ/(1000*refresh_rate_Hz));
+        uint32_t refresh_rate_CC = (SYS_FCLK_HZ/(100*refresh_rate_Hz));
     #else
         uint32_t refresh_rate_CC = (SYS_FCLK_HZ/refresh_rate_Hz);
     #endif

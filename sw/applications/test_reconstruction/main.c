@@ -9,7 +9,7 @@
 #include "GSR_sdk.h"
 #include "GSR_controller.h"
 
-#define PRINTF_IN_SIM  0
+#define PRINTF_IN_SIM  1
 #define PRINTF_IN_FPGA 1
 
 #if TARGET_SIM && PRINTF_IN_SIM
@@ -20,17 +20,12 @@
     #define PRINTF(...)
 #endif
 
-#if TARGET_SIM
-    #define VCO_UPDATE_CC (SYS_FCLK_HZ/(1000*VCO_FS_HZ))
-#else
-    #define VCO_UPDATE_CC (SYS_FCLK_HZ/VCO_FS_HZ)
-#endif
-
 #define SYS_FCLK_HZ         10000000
 #define IDAC_DEFAULT_CODE   7
 #define IREF_DEFAULT_CAL    255
-#define IDAC_DEFAULT_CAL    0
+#define IDAC_DEFAULT_CAL    15
 
+#define SAMPLING_FREQ     5
 #define N_BASIC_SAMPLES   20000000
 #define OVERSAMPLE_RATIO  4
 #define N_CTRL_STEPS      20000000
@@ -61,7 +56,7 @@ static int test_gsr_single(void) {
 
     //PRINTF("GSR single-sample conductance\n");
 
-    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, SAMPLING_FREQ, IDAC_DEFAULT_CODE);
     if (st != GSR_STATUS_OK) {
         PRINTF("  FAIL: gsr_init returned %d\n", st);
         return -1;
@@ -95,7 +90,7 @@ static int test_gsr_oversampled(void)
 {
     PRINTF("GSR oversampled conductance (ratio=%d)\n", OVERSAMPLE_RATIO);
 
-    gsr_status_t st = gsr_init(VCO_CHANNEL_P, 2, IDAC_DEFAULT_CODE);
+    gsr_status_t st = gsr_init(VCO_CHANNEL_P, SAMPLING_FREQ, IDAC_DEFAULT_CODE);
     if (st != GSR_STATUS_OK) {
         PRINTF("  FAIL: gsr_init returned %d\n", st);
         return -1;
@@ -169,9 +164,9 @@ int main(void)
 
     int failures = 0;
 
-    //failures += (test_gsr_single()      != 0) ? 1 : 0;
+    failures += (test_gsr_single()      != 0) ? 1 : 0;
     //failures += (test_gsr_oversampled() != 0) ? 1 : 0;
-    failures += (test_gsr_controller()  != 0) ? 1 : 0;
+    //failures += (test_gsr_controller()  != 0) ? 1 : 0;
 
     if (failures == 0) {
         PRINTF("=== ALL TESTS PASSED ===\n");

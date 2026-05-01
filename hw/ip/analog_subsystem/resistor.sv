@@ -11,7 +11,7 @@
 
 module resistor #(
     string FILE_NAME      = "../../../hw/ip/analog_subsystem/conductance.txt",
-    real   CHANGE_RATE_HZ = 200_00,
+    real   CHANGE_RATE_HZ = 1_000_000,
     int    line_start     = 500_000,
     int    line_end       = 600_000
 ) (
@@ -29,6 +29,7 @@ module resistor #(
   real g_siemens;
 
   real r_table[$];
+  int current_line = 1;  // Track the current line number
   int current_line = 1;  // Track the current line number
 
 
@@ -48,6 +49,9 @@ module resistor #(
     while (!$feof(
         fd
     )) begin
+    while (!$feof(
+        fd
+    )) begin
       // Attempt to read the next value
       if ($fscanf(fd, "%d", g_code) == 1) begin
 
@@ -57,6 +61,8 @@ module resistor #(
 
           if (g_siemens <= 0.0) begin
             // Safety check: handle empty table if line_start is the very first line
+            if (r_table.size() > 0) r_table.push_back(r_table[r_table.size()-1]);
+            else r_table.push_back(0.0);  // Or a suitable default
             if (r_table.size() > 0) r_table.push_back(r_table[r_table.size()-1]);
             else r_table.push_back(0.0);  // Or a suitable default
           end else begin
