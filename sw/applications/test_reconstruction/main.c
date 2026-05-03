@@ -25,7 +25,7 @@
 #define IREF_DEFAULT_CAL    255
 #define IDAC_DEFAULT_CAL    15
 
-#define SAMPLING_FREQ     15
+#define SAMPLING_FREQ     2
 #define N_BASIC_SAMPLES   20000000
 #define OVERSAMPLE_RATIO  3
 #define N_CTRL_STEPS      20000000
@@ -203,8 +203,8 @@ int main(void)
 
     int failures = 0;
 
-    //failures += (test_gsr_single()      != 0) ? 1 : 0;
-    failures += (test_gsr_oversampled() != 0) ? 1 : 0;
+    failures += (test_gsr_single()      != 0) ? 1 : 0;
+    //failures += (test_gsr_oversampled() != 0) ? 1 : 0;
     // failures += (test_gsr_controller()  != 0) ? 1 : 0;
     //failures += (test_gsr_latency() != 0) ? 1 : 0;
 

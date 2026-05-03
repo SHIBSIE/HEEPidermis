@@ -35,8 +35,6 @@ successive counter readings.
  */
 typedef struct {
     uint32_t        refresh_cycles;      // VCO refresh period in system cycles
-    uint32_t        last_counter_p;      // previous coarse/count value
-    uint32_t        last_counter_n;      // previous coarse/count value for second channel if running in differential mode
     uint32_t        last_timestamp;      // timer_get_cycles() at previous read
     bool            has_prev;            // false until first valid sample
     vco_channel_t   channel;             // channel configuration

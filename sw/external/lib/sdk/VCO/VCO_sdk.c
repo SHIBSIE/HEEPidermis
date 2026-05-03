@@ -5,6 +5,8 @@
 #define TABLE_SIZE 24
 #define SYS_FCLK_HZ 10000000
 #define VCO_BHV_FREQ_GAIN 100
+#define VCO_DECODER_PHASES 62u
+#define VCO_READOUT_DELAY_CC 3u
 
 static uint32_t g_refresh_rate_Hz = 0;
 static vco_sdk_t vco_data;
@@ -144,9 +146,7 @@ vco_status_t vco_initialize(vco_channel_t channel, uint32_t refresh_rate_Hz){
     //initialize the VCO data 
     vco_data.refresh_cycles = refresh_rate_CC;
     vco_data.has_prev = 0;
-    vco_data.last_counter_p = 0;
-    vco_data.last_counter_n = 0;
-    vco_data.last_timestamp = 0;
+    vco_data.last_timestamp = timer_get_cycles();
     vco_data.channel = channel;
 
     return VCO_STATUS_OK;
@@ -169,68 +169,38 @@ vco_status_t vco_get_Vin_uV(uint32_t* vin_uV){
     }
 
     uint32_t now = timer_get_cycles();
-    uint32_t counter_p = 0;
-    uint32_t counter_n = 0;
-    uint32_t frequency_Hz = 0;
-
-    //read the values from the counters based on the setup
-    if (vco_data.channel == VCO_CHANNEL_DIFFERENTIAL || vco_data.channel == VCO_CHANNEL_P){
-        counter_p = VCOp_get_coarse();
-    }
-
-    if (vco_data.channel == VCO_CHANNEL_DIFFERENTIAL || vco_data.channel == VCO_CHANNEL_N){
-        counter_n = VCOn_get_coarse();
-    }
-
-    //since we use the difference of the counter, we need to have at least to samples.
-    if (!vco_data.has_prev) {
-        vco_data.last_counter_p = counter_p;
-        vco_data.last_counter_n = counter_n;
-        vco_data.last_timestamp = now;
-        vco_data.has_prev = true;
-        return VCO_STATUS_NO_NEW_SAMPLE; // no new sample as it was just initialized
-    }
-
     uint32_t elapsed_cycles = now - vco_data.last_timestamp;
-    uint32_t updates_elapsed = elapsed_cycles / vco_data.refresh_cycles;
 
-    //make sure we didn't miss any updates, or if there are new values.
-    if (updates_elapsed == 0) {
+    uint32_t readout_delay = (vco_data.refresh_cycles > VCO_READOUT_DELAY_CC)
+                           ? VCO_READOUT_DELAY_CC
+                           : 0u;
+    uint64_t sample_ready_cycles = (uint64_t)vco_data.refresh_cycles + readout_delay;
+    uint64_t missed_ready_cycles =
+        ((uint64_t)vco_data.refresh_cycles * 2u) + readout_delay;
+
+    // Make sure the delayed refresh train has latched the decoder count.
+    if ((uint64_t)elapsed_cycles < sample_ready_cycles) {
         return VCO_STATUS_NO_NEW_SAMPLE;   // no new refresh yet
     }
 
-    if (updates_elapsed > 1) {
-        vco_data.last_counter_p = counter_p;
-        vco_data.last_counter_n = counter_n;
+    if ((uint64_t)elapsed_cycles >= missed_ready_cycles) {
         vco_data.last_timestamp = now;
+        vco_data.has_prev = true;
         return VCO_STATUS_MISSED_UPDATE;   // missed one or more updates
     }
 
-    uint32_t delta_p = counter_p - vco_data.last_counter_p;
-    uint32_t delta_n = counter_n - vco_data.last_counter_n;
-    uint32_t delta_counts = 0;
-
-    //transform the count into frequency.
-    switch (vco_data.channel)
-    {
-    case VCO_CHANNEL_P:
-        frequency_Hz = delta_p * g_refresh_rate_Hz;
-        break;
-    case VCO_CHANNEL_N:
-        frequency_Hz = delta_n * g_refresh_rate_Hz;
-        break;
-    case VCO_CHANNEL_DIFFERENTIAL:
-        frequency_Hz = (delta_n - delta_p) * g_refresh_rate_Hz;
-        break;
-    default:
-        return VCO_STATUS_INVALID_CONFIGURATION;
+    if (!vco_data.has_prev) {
+        vco_data.last_timestamp += vco_data.refresh_cycles;
+        vco_data.has_prev = true;
+        return VCO_STATUS_NO_NEW_SAMPLE;   // discard the first partial interval
     }
+
+    uint32_t decoder_count = VCO_get_count();
+    uint32_t frequency_Hz = (uint32_t)(((uint64_t)decoder_count * g_refresh_rate_Hz) / VCO_DECODER_PHASES);
 
     *vin_uV  = __interpolate_Vin_uV(frequency_Hz);
 
-    vco_data.last_counter_p = counter_p;
-    vco_data.last_counter_n = counter_n;
-    vco_data.last_timestamp = now;
+    vco_data.last_timestamp += vco_data.refresh_cycles;
 
     return VCO_STATUS_OK;
 }
